@@ -1,3 +1,7 @@
+#include <stdio.h>
+#include <time.h>
+#include <sys/time.h>
+
 /* Copyright (c) 2017 - 2022 LiteSpeed Technologies Inc.  See LICENSE. */
 #ifndef LSQUIC_BBR_H
 #define LSQUIC_BBR_H
@@ -188,6 +192,19 @@ struct lsquic_bbr
 
     // A window used to limit the number of bytes in flight during loss recovery
     uint64_t                    bbr_recovery_window;
+
+
+
+    // A file pointer for logging
+    FILE *bbr_pacing_rate_log_file;
+    FILE *bbr_cwnd_log_file;
+    FILE *bbr_min_rtt_log_file;
+    FILE *bbr_throughput_log_file;
+    FILE *bbr_bw_sampling_log_file;
+    struct timeval bbr_start_time;
+    struct timeval last_log_time;
+    unsigned long total_bytes_acked;
+
 
     /* Accumulate information from a single ACK.  Gets processed when
      * cci_end_ack() is called.
