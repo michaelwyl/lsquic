@@ -65,3 +65,24 @@ cmake -DBORINGSSL_DIR=$BORINGSSL .
 make
 ```
 
+Watch Video
+-----------------------
+
+To watch video you should have a `.mp4` locally. In a terminal run the following to host the video.
+```
+cd bin
+./http_server -s ip_address:port -r path_to_mp4_file -A 2 -c domain_name,path_to_cert.pem,path_to_key.pem -Q h3-29
+```
+
+In a separate terminal run
+```
+cd bin
+python proxy.py
+```
+
+In a separate terminal run
+```
+cd bin
+python selenium_qoe.py
+```
+QoE metrics will be printed out to the stdout.
