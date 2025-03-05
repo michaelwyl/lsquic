@@ -92,4 +92,26 @@ On another machine, run
 cd bin
 python qoe.py
 ```
-QoE metrics will be printed out to the stdout.
+While running the pipeline, BBR parameter will be logged into files
+- bw_sampling
+- cnwd
+- min_rtt
+- pacing_rate
+- throughput
+
+QoE metrics will be printed out to the stdout. Example:
+```
+Time: 0.00s, Buffered: 35.99s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 4, FPS: 1112.35, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+Time: 0.97s, Buffered: 43.98s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 33, FPS: 34.08, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+Time: 1.97s, Buffered: 48.40s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 63, FPS: 31.92, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+Time: 2.98s, Buffered: 55.98s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 94, FPS: 31.56, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+Time: 3.99s, Buffered: 63.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 124, FPS: 31.06, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+Time: 5.00s, Buffered: 63.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 154, FPS: 30.80, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+Time: 6.02s, Buffered: 63.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 185, FPS: 30.75, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+Time: 7.03s, Buffered: 63.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 215, FPS: 30.60, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+Time: 8.03s, Buffered: 64.17s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 245, FPS: 30.51, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+Time: 9.04s, Buffered: 64.17s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 275, FPS: 30.43, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+Time: 10.04s, Buffered: 73.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 306, FPS: 30.46, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+Time: 11.06s, Buffered: 73.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 336, FPS: 30.39, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+Time: 12.07s, Buffered: 73.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 366, FPS: 30.33, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+```
