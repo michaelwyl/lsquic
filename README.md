@@ -65,24 +65,31 @@ cmake -DBORINGSSL_DIR=$BORINGSSL .
 make
 ```
 
+Prepare Video
+-----------------------
+
+You will need to prepare video segments under `/bin/video` for ABR, with a pre-existing `.mp4` file.
+```
+cd bin/video
+MP4Box -add input.mp4#video -new video.mp4
+MP4Box -add input.mp4#audio -new audio.mp4
+MP4Box -dash 4000 -frag 4000 -rap -segment-name segment_ -out manifest.mpd video.mp4 audio.mp4
+```
+This will generate the video chunks.
+
 Watch Video
 -----------------------
 
-To watch video you should have a `.mp4` locally. In a terminal run the following to host the video.
+In a terminal run the following to host the video.
 ```
 cd bin
-./http_server -s ip_address:port -r path_to_mp4_file -A 2 -c domain_name,path_to_cert.pem,path_to_key.pem -Q h3-29
+./http_server -s ip_address:port -r ./video -A 2 -c domain_name,path_to_cert.pem,path_to_key.pem
 ```
+Specific instructions on generating the certificates will be added later.
 
-In a separate terminal run
+On another machine, run
 ```
 cd bin
-python proxy.py
-```
-
-In a separate terminal run
-```
-cd bin
-python selenium_qoe.py
+python qoe.py
 ```
 QoE metrics will be printed out to the stdout.
