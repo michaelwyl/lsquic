@@ -65,6 +65,12 @@ cmake -DBORINGSSL_DIR=$BORINGSSL .
 make
 ```
 
+Tests
+-----------------------
+The codebase allows various tests to be performed
+- /bin/perf_server/client - benchmarking the performance of QUIC connections (similar to iperf3 in TCP in terms of functionality)
+- video streaming QoE data collection discussed in the following steps. 
+
 Prepare Video
 -----------------------
 
