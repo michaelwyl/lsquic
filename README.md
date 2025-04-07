@@ -85,7 +85,14 @@ In a terminal run the following to host the video.
 cd bin
 ./http_server -s ip_address:port -r ./video -A 2 -c domain_name,path_to_cert.pem,path_to_key.pem
 ```
-Specific instructions on generating the certificates will be added later.
+To generate SSL certificate for the connection, run
+```
+cd bin/certificate
+openssl genrsa -out stream.key 2048
+openssl req -new -key cert.key -out cert.csr -config lsquic.cnf
+openssl x509 -req -days 365 -in cert.csr -signkey cert.key -out cert.crt -extensions v3_req -extfile lsquic.cnf
+openssl x509 -pubkey -noout -in cert.crt | openssl rsa -pubin -outform der | openssl dgst -sha256 -binary | base64 
+```
 
 On another machine, run
 ```
