@@ -4,20 +4,20 @@ from selenium.webdriver.common.by import By  # ← Add this line
 from selenium.webdriver.chrome.options import Options
 import time
 
-# Configure Chrome options
+
 chrome_options = Options()
+
 chrome_options.add_argument("--ignore-certificate-errors")
-chrome_options.add_argument("--allow-insecure-localhost")
+chrome_options.add_argument("--ignore-certificate-errors-spki-list=ApHEpXVSCYmXvjFYCdbfwDEiSoFCHVvSRMEIemJU95w=")
 chrome_options.add_argument("--ignore-ssl-errors")
 chrome_options.add_argument("--enable-quic")
-chrome_options.add_argument("--origin-to-force-quic-on=mytestserver.local:4433")
+chrome_options.add_argument("--host-resolver-rules=MAP quic.local 45.76.170.255")
+chrome_options.add_argument("--origin-to-force-quic-on=quic.local:5201")
 
 chrome_options.add_argument("--disable-web-security")
 chrome_options.add_argument("--allow-running-insecure-content")
 chrome_options.add_argument("--no-sandbox")
 chrome_options.add_argument("--headless")
-chrome_options.add_argument("--ignore-certificate-errors")
-
 
 # Path to ChromeDriver
 service = Service("/opt/homebrew/bin/chromedriver")
@@ -25,12 +25,10 @@ service = Service("/opt/homebrew/bin/chromedriver")
 # Start WebDriver
 driver = webdriver.Chrome(service=service, options=chrome_options)
 
-
-print("Attempting to connect to https://mytestserver.local:4433...")
-driver.get("https://mytestserver.local:4433/index.html")
+driver.get("https://quic.local:5201/index.html")
 
 # Wait for video element to load
-time.sleep(5)
+time.sleep(20)
 
 video = driver.find_element(By.ID, "videoPlayer")
 

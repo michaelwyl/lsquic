@@ -1,0 +1,23 @@
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+default_bits = 2048
+
+[req_distinguished_name]
+C = US
+ST = State
+L = Locality
+O = Organization
+OU = Organizational Unit
+CN = quic.local
+
+[v3_req]
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+IP.1 = 45.76.170.255
+DNS.1 = quic.local
