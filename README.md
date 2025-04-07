@@ -95,7 +95,7 @@ openssl x509 -pubkey -noout -in cert.crt | openssl rsa -pubin -outform der | ope
 ```
 Copy the output from last command and modify the /bin/qoe.py line 11.
 ```
-chrome_options.add_argument("--ignore-certificate-errors-spki-list=dSiDY7LGoozlpLzHmutdwpKP/y2cfN9oh98uNYpNViI=") # paste after =
+chrome_options.add_argument("--ignore-certificate-errors-spki-list=dSiDY7LGoozlpLzHmutdwpKP/y2cfN9oh98uNYpNViI=") # substitute the value after "="
 ```
 On another machine, run
 ```
