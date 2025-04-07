@@ -93,7 +93,10 @@ openssl req -new -key cert.key -out cert.csr -config lsquic.cnf
 openssl x509 -req -days 365 -in cert.csr -signkey cert.key -out cert.crt -extensions v3_req -extfile lsquic.cnf
 openssl x509 -pubkey -noout -in cert.crt | openssl rsa -pubin -outform der | openssl dgst -sha256 -binary | base64 
 ```
-
+Copy the output from last command and modify the /bin/qoe.py line 11.
+```
+chrome_options.add_argument("--ignore-certificate-errors-spki-list=dSiDY7LGoozlpLzHmutdwpKP/y2cfN9oh98uNYpNViI=") # paste after =
+```
 On another machine, run
 ```
 cd bin
