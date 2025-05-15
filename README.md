@@ -110,7 +110,7 @@ python qoe.py
 ```
 While running the pipeline, BBR parameter will be logged into files
 - bw_sampling
-- cnwd
+- cwnd
 - min_rtt
 - pacing_rate
 - throughput
