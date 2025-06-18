@@ -8,16 +8,17 @@ import time
 chrome_options = Options()
 
 chrome_options.add_argument("--ignore-certificate-errors")
-chrome_options.add_argument("--ignore-certificate-errors-spki-list=ApHEpXVSCYmXvjFYCdbfwDEiSoFCHVvSRMEIemJU95w=")
+chrome_options.add_argument("--ignore-certificate-errors-spki-list=dSiDY7LGoozlpLzHmutdwpKP/y2cfN9oh98uNYpNViI=")
 chrome_options.add_argument("--ignore-ssl-errors")
 chrome_options.add_argument("--enable-quic")
 chrome_options.add_argument("--host-resolver-rules=MAP quic.local 45.76.170.255")
 chrome_options.add_argument("--origin-to-force-quic-on=quic.local:5201")
+# chrome_options.add_argument("--origin-to-force-quic-on=45.76.170.255:5201")
 
 chrome_options.add_argument("--disable-web-security")
 chrome_options.add_argument("--allow-running-insecure-content")
 chrome_options.add_argument("--no-sandbox")
-chrome_options.add_argument("--headless")
+# chrome_options.add_argument("--headless")
 
 # Path to ChromeDriver
 service = Service("/opt/homebrew/bin/chromedriver")
