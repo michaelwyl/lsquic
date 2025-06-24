@@ -87,9 +87,16 @@ Watch Video
 -----------------------
 
 In a terminal run the following to host the video.
+For QUIC
 ```
 cd bin
 ./http_server -s ip_address:port -r ./video -A 2 -c domain_name,path_to_cert.pem,path_to_key.pem
+```
+
+For TCP
+```
+cd bin/video
+python3 -m http.server 5201 --bind 0.0.0.0
 ```
 To generate SSL certificate for the connection, run
 ```
@@ -106,7 +113,7 @@ chrome_options.add_argument("--ignore-certificate-errors-spki-list=dSiDY7LGoozlp
 Then run
 ```
 cd bin
-python qoe.py
+python watch_and_save.py tcp/quic
 ```
 While running the pipeline, BBR parameter will be logged into files
 - bw_sampling
