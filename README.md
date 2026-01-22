@@ -65,6 +65,12 @@ cmake -DBORINGSSL_DIR=$BORINGSSL .
 make
 ```
 
+Tests
+-----------------------
+The codebase allows various tests to be performed
+- /bin/perf_server/client - benchmarking the performance of QUIC connections (similar to iperf3 in TCP in terms of functionality)
+- video streaming QoE data collection discussed in the following steps. 
+
 Prepare Video
 -----------------------
 
@@ -81,37 +87,60 @@ Watch Video
 -----------------------
 
 In a terminal run the following to host the video.
+
+For QUIC
 ```
 cd bin
 ./http_server -s ip_address:port -r ./video -A 2 -c domain_name,path_to_cert.pem,path_to_key.pem
 ```
-Specific instructions on generating the certificates will be added later.
 
-On another machine, run
+For TCP
+```
+cd bin/video
+python3 -m http.server 5201 --bind 0.0.0.0
+```
+To generate SSL certificate for the connection, run
+```
+cd bin/certificate
+openssl genrsa -out cert.key 2048
+openssl req -new -key cert.key -out cert.csr -config lsquic.cnf
+openssl x509 -req -days 365 -in cert.csr -signkey cert.key -out cert.crt -extensions v3_req -extfile lsquic.cnf
+openssl x509 -pubkey -noout -in cert.crt | openssl rsa -pubin -outform der | openssl dgst -sha256 -binary | base64 
+```
+Copy the output from last command and on another machine, modify the /bin/qoe.py line 11.
+```
+chrome_options.add_argument("--ignore-certificate-errors-spki-list=dSiDY7LGoozlpLzHmutdwpKP/y2cfN9oh98uNYpNViI=") # substitute the value after "="
+```
+Then run
 ```
 cd bin
-python qoe.py
+python watch_and_save.py tcp/quic
 ```
 While running the pipeline, BBR parameter will be logged into files
 - bw_sampling
-- cnwd
+- cwnd
 - min_rtt
 - pacing_rate
 - throughput
 
-QoE metrics will be printed out to the stdout. Example:
+QoE metrics will be printed out to the stdout and saved in a file. Example:
 ```
-Time: 0.00s, Buffered: 35.99s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 4, FPS: 1112.35, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
-Time: 0.97s, Buffered: 43.98s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 33, FPS: 34.08, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
-Time: 1.97s, Buffered: 48.40s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 63, FPS: 31.92, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
-Time: 2.98s, Buffered: 55.98s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 94, FPS: 31.56, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
-Time: 3.99s, Buffered: 63.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 124, FPS: 31.06, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
-Time: 5.00s, Buffered: 63.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 154, FPS: 30.80, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
-Time: 6.02s, Buffered: 63.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 185, FPS: 30.75, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
-Time: 7.03s, Buffered: 63.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 215, FPS: 30.60, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
-Time: 8.03s, Buffered: 64.17s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 245, FPS: 30.51, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
-Time: 9.04s, Buffered: 64.17s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 275, FPS: 30.43, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
-Time: 10.04s, Buffered: 73.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 306, FPS: 30.46, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
-Time: 11.06s, Buffered: 73.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 336, FPS: 30.39, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
-Time: 12.07s, Buffered: 73.23s, Playback Rate: 1.00, Dropped Frames: 0 (0.00%), Total Frames: 366, FPS: 30.33, Resolution: 1920x1080, Stalls: 0, Total Stall Time: 0.00s, Rebuffer Rate: 0.00%
+t=0.0s buf=15.4s bitrate=0kbps switches=0 fps=353.4 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=1.0s buf=15.4s bitrate=0kbps switches=0 fps=34.1 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=2.0s buf=15.4s bitrate=0kbps switches=0 fps=31.9 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=3.0s buf=15.4s bitrate=0kbps switches=0 fps=31.2 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=4.1s buf=15.4s bitrate=0kbps switches=0 fps=31.0 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=5.1s buf=15.4s bitrate=0kbps switches=0 fps=30.8 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=6.1s buf=15.4s bitrate=0kbps switches=0 fps=30.7 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=7.1s buf=15.4s bitrate=0kbps switches=0 fps=30.6 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=8.1s buf=15.4s bitrate=0kbps switches=0 fps=30.5 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=9.1s buf=15.4s bitrate=0kbps switches=0 fps=30.5 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=10.1s buf=15.4s bitrate=0kbps switches=0 fps=30.4 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=11.1s buf=15.4s bitrate=0kbps switches=0 fps=30.3 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=12.2s buf=15.4s bitrate=0kbps switches=0 fps=30.4 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=13.2s buf=15.4s bitrate=0kbps switches=0 fps=30.3 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=14.2s buf=15.4s bitrate=0kbps switches=0 fps=30.3 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=15.2s buf=15.4s bitrate=0kbps switches=0 fps=30.3 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
+t=15.4s buf=15.4s bitrate=0kbps switches=0 fps=30.0 drop=0.0% stalls=0 totalStall=0.0s rebuffer rate=0.0%
 ```
+Note: bitrate calculation needs to be updated, current calculation is incorrect.
