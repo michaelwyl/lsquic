@@ -195,14 +195,11 @@ struct lsquic_bbr
 
 
 
-    // A file pointer for logging
-    FILE *bbr_pacing_rate_log_file;
-    FILE *bbr_cwnd_log_file;
-    FILE *bbr_min_rtt_log_file;
-    FILE *bbr_throughput_log_file;
-    FILE *bbr_bw_sampling_log_file;
+    // Consolidated metrics logging
+    FILE *bbr_metrics_file;
+    FILE *bbr_packet_log_file;
     struct timeval bbr_start_time;
-    struct timeval last_log_time;
+    lsquic_time_t last_periodic_log_time;
     unsigned long total_bytes_acked;
 
 

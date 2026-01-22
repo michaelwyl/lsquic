@@ -212,82 +212,43 @@ lsquic_bbr_init (void *cong_ctl, const struct lsquic_conn_public *conn_pub,
 
     init_bbr(bbr);
 
-    // logging
-    
+    // Initialize consolidated metrics logging
     gettimeofday(&bbr->bbr_start_time, NULL);
-    gettimeofday(&bbr->last_log_time, NULL);
+    bbr->last_periodic_log_time = 0;
+    bbr->total_bytes_acked = 0;
 
-    bbr->bbr_cwnd_log_file = fopen("bbr_cwnd_log.txt", "w");
-    if (bbr->bbr_cwnd_log_file) {
-        setvbuf(bbr->bbr_cwnd_log_file, NULL, _IONBF, 0);
-        fprintf(bbr->bbr_cwnd_log_file, "elapsed_time(microseconds), cwnd\n");
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-        fprintf(bbr->bbr_cwnd_log_file, "%06ld ,%"PRIu64"\n",
-                // tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-                elapsed_microseconds, // Log elapsed microseconds
-                bbr->bbr_cwnd);
+    // Create unique filename per connection using connection ID and timestamp
+    {
+        char cid_str[MAX_CID_LEN * 2 + 1];
+        char filename[256];
 
-        // fprintf(bbr->bbr_cwnd_log_file, "timestamp,elapsed_time,cwnd,pacing_rate,min_rtt\n");
-        // fprintf(bbr->bbr_cwnd_log_file, "%ld,0,%"PRIu64",%"PRIu64"\n",
-        //         bbr->bbr_start_time, bbr->bbr_cwnd,lsquic_rtt_stats_get_min_rtt(bbr->bbr_rtt_stats));
-    } else {
-        LSQ_WARN("Failed to open BBR log file");
-    }
+        lsquic_cid2str(lsquic_conn_log_cid(conn_pub->lconn), cid_str);
+        snprintf(filename, sizeof(filename), "bbr_metrics_%s_%ld.csv",
+                 cid_str, bbr->bbr_start_time.tv_sec);
 
-    bbr->bbr_pacing_rate_log_file = fopen("bbr_pacing_rate_log.txt", "w");
-    if (bbr->bbr_pacing_rate_log_file) {
-        setvbuf(bbr->bbr_pacing_rate_log_file, NULL, _IONBF, 0);
-        fprintf(bbr->bbr_pacing_rate_log_file, "elapsed_time(microseconds), pacing_rate\n");
+        bbr->bbr_metrics_file = fopen(filename, "w");
+        if (bbr->bbr_metrics_file) {
+            setvbuf(bbr->bbr_metrics_file, NULL, _IONBF, 0);
+            fprintf(bbr->bbr_metrics_file,
+                "timestamp_us,cwnd,min_rtt,bandwidth,throughput,mode,pacing_rate\n");
+            LSQ_DEBUG("Opened metrics file: %s", filename);
+        } else {
+            LSQ_WARN("Failed to open BBR metrics file: %s", filename);
+        }
 
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-        fprintf(bbr->bbr_pacing_rate_log_file, "%06ld,%"PRIu64"\n",
-                // tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-                elapsed_microseconds, // Log elapsed microseconds
-                BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate));
+        // Create packet log file
+        snprintf(filename, sizeof(filename), "packet_log_%s_%ld.csv",
+                 cid_str, bbr->bbr_start_time.tv_sec);
 
-        // fprintf(bbr->bbr_pacing_rate_log_file, "timestamp,elapsed_time,pacing_rate,min_rtt\n");
-        // fprintf(bbr->bbr_pacing_rate_log_file, "%ld,0,%"PRIu64",%"PRIu64"\n",
-        //         bbr->bbr_start_time,lsquic_rtt_stats_get_min_rtt(bbr->bbr_rtt_stats));
-    } else {
-        LSQ_WARN("Failed to open BBR log file");
-    }
-
-    bbr->bbr_min_rtt_log_file = fopen("bbr_min_rtt_log.txt", "w");
-    if (bbr->bbr_min_rtt_log_file) {
-        setvbuf(bbr->bbr_min_rtt_log_file, NULL, _IONBF, 0);
-        fprintf(bbr->bbr_min_rtt_log_file, "elapsed_time(microseconds), min_rtt, type\n");
-
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-        fprintf(bbr->bbr_min_rtt_log_file, "%06ld,0, %"PRIu64", %s\n",
-                // tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-                elapsed_microseconds, // Log elapsed microseconds
-                bbr->bbr_min_rtt,
-                "initial"); // Log type
-    } else {
-        LSQ_WARN("Failed to open BBR log file");
-    }
-
-    bbr->bbr_throughput_log_file = fopen("bbr_throughput_log_file.txt", "w");
-    if (bbr->bbr_throughput_log_file) {
-        bbr->total_bytes_acked = 0;
-        setvbuf(bbr->bbr_throughput_log_file, NULL, _IONBF, 0);
-        fprintf(bbr->bbr_throughput_log_file, "elapsed_time(microseconds), throughput\n");
-    } else {
-        LSQ_WARN("Failed to open BBR log file");
-    }
-
-    bbr->bbr_bw_sampling_log_file = fopen("bbr_bw_sampling_log_file.txt", "w");
-    if (bbr->bbr_bw_sampling_log_file) {
-        setvbuf(bbr->bbr_bw_sampling_log_file, NULL, _IONBF, 0);
-        fprintf(bbr->bbr_bw_sampling_log_file, "elapsed_time(microseconds), bw_sample\n");
-    } else {
-        LSQ_WARN("Failed to open BBR log file");
+        bbr->bbr_packet_log_file = fopen(filename, "w");
+        if (bbr->bbr_packet_log_file) {
+            setvbuf(bbr->bbr_packet_log_file, NULL, _IONBF, 0);
+            fprintf(bbr->bbr_packet_log_file,
+                "event,timestamp_us,packet_number,packet_size,packet_type,send_time_us\n");
+            LSQ_DEBUG("Opened packet log file: %s", filename);
+        } else {
+            LSQ_WARN("Failed to open packet log file: %s", filename);
+        }
     }
 
     LSQ_DEBUG("initialized");
@@ -413,23 +374,10 @@ lsquic_bbr_ack (void *cong_ctl, struct lsquic_packet_out *packet_out,
                   unsigned packet_sz, lsquic_time_t now_time, int app_limited)
 {
     struct lsquic_bbr *const bbr = cong_ctl;
-
-    if (bbr->bbr_throughput_log_file) {
-        bbr->total_bytes_acked += packet_sz;
-        struct timeval current_time;
-        gettimeofday(&current_time, NULL);
-        long elapsed_time = (current_time.tv_sec - bbr->last_log_time.tv_sec) * 1000000L + (current_time.tv_usec - bbr->last_log_time.tv_usec);
-        if (elapsed_time > 100000) {
-            float throughput = (double)bbr->total_bytes_acked * 8 / (elapsed_time / 1000000.0);
-            fprintf(bbr->bbr_throughput_log_file, "%06ld, %.2f\n",
-                (current_time.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (current_time.tv_usec - bbr->bbr_start_time.tv_usec),
-                throughput);
-            bbr->total_bytes_acked = 0;  // Reset the counter
-            bbr->last_log_time = current_time;
-        }
-    }
-
     struct bw_sample *sample;
+
+    /* Accumulate bytes acked for throughput calculation */
+    bbr->total_bytes_acked += packet_sz;
 
     assert(bbr->bbr_flags & BBR_FLAG_IN_ACK);
 
@@ -439,17 +387,6 @@ lsquic_bbr_ack (void *cong_ctl, struct lsquic_packet_out *packet_out,
     if (sample)
         TAILQ_INSERT_TAIL(&bbr->bbr_ack_state.samples, sample, next);
 
-    if (bbr->bbr_bw_sampling_log_file && sample) {
-        struct timeval tv;
-        gettimeofday(&tv, NULL);
-        long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec);
-        fprintf(bbr->bbr_bw_sampling_log_file, "%06ld, %"PRIu64"\n",
-            // tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-            elapsed_microseconds, // Log elapsed microseconds
-            BW_VALUE(&sample->bandwidth));
-
-    }
-
     if (!is_valid_packno(bbr->bbr_ack_state.max_packno)
                 /* Packet ordering is checked for, and warned about, in
                  * lsquic_senhist_add().
@@ -457,8 +394,44 @@ lsquic_bbr_ack (void *cong_ctl, struct lsquic_packet_out *packet_out,
             || packet_out->po_packno > bbr->bbr_ack_state.max_packno)
         bbr->bbr_ack_state.max_packno = packet_out->po_packno;
     bbr->bbr_ack_state.acked_bytes += packet_sz;
+
+    /* Log ACK information */
+    if (bbr->bbr_packet_log_file)
+    {
+        struct timeval tv;
+        long elapsed_us;
+        lsquic_time_t rtt;
+
+        gettimeofday(&tv, NULL);
+        elapsed_us = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 +
+                     (tv.tv_usec - bbr->bbr_start_time.tv_usec);
+
+        /* Calculate RTT: time from when packet was sent to when ACK was received */
+        rtt = bbr->bbr_ack_state.ack_time - packet_out->po_sent;
+
+        /* ACK: event, timestamp (ack_recv_time), packet_number, packet_size, packet_type, rtt_us */
+        fprintf(bbr->bbr_packet_log_file, "ACK,%ld,%"PRIu64",%u,ACK,%"PRIu64"\n",
+                elapsed_us,
+                packet_out->po_packno,
+                packet_sz,
+                rtt);
+    }
 }
 
+
+static const char *
+header_type_to_str(enum header_type htype)
+{
+    switch (htype) {
+    case HETY_SHORT:     return "1RTT";
+    case HETY_VERNEG:    return "VERNEG";
+    case HETY_INITIAL:   return "INITIAL";
+    case HETY_RETRY:     return "RETRY";
+    case HETY_HANDSHAKE: return "HANDSHAKE";
+    case HETY_0RTT:      return "0RTT";
+    default:             return "UNKNOWN";
+    }
+}
 
 static void
 lsquic_bbr_sent (void *cong_ctl, struct lsquic_packet_out *packet_out,
@@ -477,6 +450,25 @@ lsquic_bbr_sent (void *cong_ctl, struct lsquic_packet_out *packet_out,
 
     if (app_limited)
         bbr_app_limited(bbr, in_flight);
+
+    /* Log packet information */
+    if (bbr->bbr_packet_log_file)
+    {
+        struct timeval tv;
+        long elapsed_us;
+
+        gettimeofday(&tv, NULL);
+        elapsed_us = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 +
+                     (tv.tv_usec - bbr->bbr_start_time.tv_usec);
+
+        /* SENT: event, timestamp, packet_number, packet_size, packet_type, send_time (same as timestamp) */
+        fprintf(bbr->bbr_packet_log_file, "SENT,%ld,%"PRIu64",%u,%s,%ld\n",
+                elapsed_us,
+                packet_out->po_packno,
+                packet_out->po_data_sz,
+                header_type_to_str(packet_out->po_header_type),
+                elapsed_us);
+    }
 }
 
 
@@ -595,18 +587,6 @@ update_bandwidth_and_min_rtt (struct lsquic_bbr *bbr)
             LSQ_DEBUG("min rtt updated: %"PRIu64" -> %"PRIu64,
                 bbr->bbr_min_rtt, sample_min_rtt);
             bbr->bbr_min_rtt = sample_min_rtt;
-
-            // logging
-            if (bbr->bbr_min_rtt_log_file) {
-                struct timeval tv;
-                gettimeofday(&tv, NULL);
-                long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-                fprintf(bbr->bbr_min_rtt_log_file, "%06ld, %"PRIu64", %s\n",
-                        // tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-                        elapsed_microseconds, // Log elapsed microseconds
-                        bbr->bbr_min_rtt, // Log min_rtt
-                        "update"); // Log type
-            }
         }
         bbr->bbr_min_rtt_timestamp = bbr->bbr_ack_state.ack_time;
         bbr->bbr_min_rtt_since_last_probe = UINT64_MAX;
@@ -909,18 +889,6 @@ maybe_enter_or_exit_probe_rtt (struct lsquic_bbr *bbr, lsquic_time_t now,
             on_exit_startup(bbr, now);
         set_mode(bbr, BBR_MODE_PROBE_RTT);
 
-        // logging
-            if (bbr->bbr_min_rtt_log_file) {
-                struct timeval tv;
-                gettimeofday(&tv, NULL);
-                long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-                fprintf(bbr->bbr_min_rtt_log_file, "%06ld, %"PRIu64", %s\n",
-                        // tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-                        elapsed_microseconds, // Log elapsed microseconds
-                        bbr->bbr_min_rtt, // Log min_rtt
-                        "Enters ProbeRTT"); // Log type
-            }
-
         bbr->bbr_pacing_gain = 1;
         // Do not decide on the time to exit PROBE_RTT until the
         // |bytes_in_flight| is at the target small value.
@@ -972,9 +940,6 @@ maybe_enter_or_exit_probe_rtt (struct lsquic_bbr *bbr, lsquic_time_t now,
 static void
 calculate_pacing_rate (struct lsquic_bbr *bbr)
 {
-    // log old pacing rate
-    uint64_t old_pacing_rate = BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate);
-
     struct bandwidth bw, target_rate;
 
     bw = BW(minmax_get(&bbr->bbr_max_bandwidth));
@@ -987,18 +952,6 @@ calculate_pacing_rate (struct lsquic_bbr *bbr)
     if (bbr->bbr_flags & BBR_FLAG_IS_AT_FULL_BANDWIDTH)
     {
         bbr->bbr_pacing_rate = target_rate;
-
-        // logging
-        if (bbr->bbr_pacing_rate_log_file && old_pacing_rate != BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate)) {
-            struct timeval tv;
-            gettimeofday(&tv, NULL); // Get the current time
-            long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-
-            fprintf(bbr->bbr_pacing_rate_log_file, "%06ld,%"PRIu64"\n",
-                // tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-                elapsed_microseconds, // Log elapsed microseconds
-                BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate));
-        }
         return;
     }
 
@@ -1010,17 +963,6 @@ calculate_pacing_rate (struct lsquic_bbr *bbr)
         bbr->bbr_pacing_rate = BW_FROM_BYTES_AND_DELTA(
             bbr->bbr_init_cwnd,
             lsquic_rtt_stats_get_min_rtt(bbr->bbr_rtt_stats));
-        // logging
-        if (bbr->bbr_pacing_rate_log_file && old_pacing_rate != BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate)) {
-            struct timeval tv;
-            gettimeofday(&tv, NULL); // Get the current time
-            long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-
-            fprintf(bbr->bbr_pacing_rate_log_file, "%06ld,%"PRIu64"\n",
-                // tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-                elapsed_microseconds, // Log elapsed microseconds
-                BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate));
-        }
         return;
     }
 
@@ -1032,17 +974,6 @@ calculate_pacing_rate (struct lsquic_bbr *bbr)
                 == (BBR_FLAG_SLOWER_STARTUP|BBR_FLAG_HAS_NON_APP_LIMITED))
     {
         bbr->bbr_pacing_rate = BW_TIMES(&bw, kStartupAfterLossGain);
-        // logging
-        if (bbr->bbr_pacing_rate_log_file && old_pacing_rate != BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate)) {
-            struct timeval tv;
-            gettimeofday(&tv, NULL); // Get the current time
-            long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-
-            fprintf(bbr->bbr_pacing_rate_log_file, "%06ld,%"PRIu64"\n",
-                // tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-                elapsed_microseconds, // Log elapsed microseconds
-                BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate));
-        }
         return;
     }
 
@@ -1060,45 +991,12 @@ calculate_pacing_rate (struct lsquic_bbr *bbr)
         if (BW_VALUE(&bbr->bbr_pacing_rate)
                                         < BW_VALUE(&bw) * kStartupGrowthTarget)
             bbr->bbr_pacing_rate = BW_TIMES(&bw, kStartupGrowthTarget);
-        
-        // logging
-        if (bbr->bbr_pacing_rate_log_file && old_pacing_rate != BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate)) {
-            struct timeval tv;
-            gettimeofday(&tv, NULL); // Get the current time
-            long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-
-            fprintf(bbr->bbr_pacing_rate_log_file, "%06ld,%"PRIu64"\n",
-                // tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-                elapsed_microseconds, // Log elapsed microseconds
-                BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate));
-        }
-
         return;
     }
 
     // Do not decrease the pacing rate during startup.
     if (BW_VALUE(&bbr->bbr_pacing_rate) < BW_VALUE(&target_rate))
         bbr->bbr_pacing_rate = target_rate;
-    
-
-
-    // logging
-    if (bbr->bbr_pacing_rate_log_file && old_pacing_rate != BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate)) {
-        // time_t current_time = time(NULL);
-        // fprintf(bbr->bbr_pacing_rate_log_file, "%ld,%ld,%"PRIu64",%"PRIu64"\n",
-        //         current_time,
-        //         current_time - bbr->bbr_start_time,
-        //         BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate),
-        //         lsquic_rtt_stats_get_min_rtt(bbr->bbr_rtt_stats));
-        struct timeval tv;
-            gettimeofday(&tv, NULL); // Get the current time
-            long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-
-            fprintf(bbr->bbr_pacing_rate_log_file, "%06ld,%"PRIu64"\n",
-                // tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-                elapsed_microseconds, // Log elapsed microseconds
-                BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate));
-    }
 }
 
 
@@ -1107,9 +1005,6 @@ static void
 calculate_cwnd (struct lsquic_bbr *bbr, uint64_t bytes_acked,
                                                   uint64_t excess_acked)
 {
-    // log old cwnd
-    uint64_t old_cwnd = bbr->bbr_cwnd;
-
     if (bbr->bbr_mode == BBR_MODE_PROBE_RTT)
         return;
 
@@ -1145,27 +1040,6 @@ calculate_cwnd (struct lsquic_bbr *bbr, uint64_t bytes_acked,
         LSQ_DEBUG("exceed max cwnd");
         bbr->bbr_cwnd = bbr->bbr_max_cwnd;
     }
-
-
-    // logging
-    if (bbr->bbr_cwnd_log_file && old_cwnd != bbr->bbr_cwnd) {
-        struct timeval tv;
-        gettimeofday(&tv, NULL); // Get the current time
-        long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-
-        fprintf(bbr->bbr_cwnd_log_file, "%06ld, %"PRIu64"\n",
-            // tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-            elapsed_microseconds, // Log elapsed microseconds
-            bbr->bbr_cwnd); // Log cwnd
-
-        // time_t current_time = time(NULL);
-        // fprintf(bbr->bbr_cwnd_log_file, "%ld,%ld,%"PRIu64",%"PRIu64"\n",
-        //         current_time,
-        //         current_time - bbr->bbr_start_time,
-        //         bbr->bbr_cwnd,
-        //         lsquic_rtt_stats_get_min_rtt(bbr->bbr_rtt_stats));
-    }
-
 }
 
 
@@ -1210,6 +1084,50 @@ calculate_recovery_window (struct lsquic_bbr *bbr, uint64_t bytes_acked,
         bbr->bbr_recovery_window = MAX(bbr->bbr_recovery_window,
                                             bytes_in_flight + kMaxSegmentSize);
     bbr->bbr_recovery_window = MAX(bbr->bbr_recovery_window, bbr->bbr_min_cwnd);
+}
+
+
+/* Periodic metrics logging - logs every 1 second */
+static void
+bbr_log_metrics_periodic(struct lsquic_bbr *bbr, lsquic_time_t now)
+{
+    struct timeval tv;
+    long elapsed_us;
+    double throughput;
+    uint64_t pacing_rate_val;
+
+    (void)now;  /* Using wall clock instead of QUIC time for consistent intervals */
+
+    if (!bbr->bbr_metrics_file)
+        return;
+
+    /* Calculate elapsed time using wall clock for consistent 1-second intervals */
+    gettimeofday(&tv, NULL);
+    elapsed_us = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 +
+                 (tv.tv_usec - bbr->bbr_start_time.tv_usec);
+
+    /* Check if 1 second (1,000,000 microseconds) has elapsed using wall clock */
+    if (bbr->last_periodic_log_time != 0 &&
+        elapsed_us - bbr->last_periodic_log_time < 1000000)
+        return;
+
+    bbr->last_periodic_log_time = elapsed_us;
+
+    /* Calculate throughput (bits per second) */
+    throughput = (elapsed_us > 0) ?
+        (double)bbr->total_bytes_acked * 8.0 / (elapsed_us / 1000000.0) : 0;
+
+    /* Get pacing rate, use 0 if not yet initialized */
+    pacing_rate_val = BW_VALUE(&bbr->bbr_pacing_rate);
+
+    fprintf(bbr->bbr_metrics_file, "%ld,%"PRIu64",%"PRIu64",%"PRIu64",%.0f,%d,%"PRIu64"\n",
+        elapsed_us,
+        bbr->bbr_cwnd,
+        bbr->bbr_min_rtt,
+        minmax_get(&bbr->bbr_max_bandwidth),
+        throughput,
+        bbr->bbr_mode,
+        pacing_rate_val);
 }
 
 
@@ -1271,6 +1189,9 @@ lsquic_bbr_end_ack (void *cong_ctl, uint64_t in_flight)
     calculate_cwnd(bbr, bytes_acked, excess_acked);
     calculate_recovery_window(bbr, bytes_acked, bytes_lost, in_flight);
 
+    /* Log metrics periodically (every 1 second) */
+    bbr_log_metrics_periodic(bbr, bbr->bbr_ack_state.ack_time);
+
     /* We don't need to clean up BW sampler */
 }
 
@@ -1282,46 +1203,16 @@ lsquic_bbr_cleanup (void *cong_ctl)
 
     lsquic_bw_sampler_cleanup(&bbr->bbr_bw_sampler);
 
-    // Close the log file
-    if (bbr->bbr_pacing_rate_log_file) {
-        // struct timeval tv;
-        // gettimeofday(&tv, NULL); // Get the current time
-        // long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-
-        // fprintf(bbr->bbr_pacing_rate_log_file, "%ld%06ld,%ld,%"PRIu64"\n",
-        //         tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-        //         elapsed_microseconds, // Log elapsed microseconds
-        //         BW_TO_BYTES_PER_SEC(&bbr->bbr_pacing_rate));
-        fclose(bbr->bbr_pacing_rate_log_file);
-        bbr->bbr_pacing_rate_log_file = NULL;
+    // Close the metrics log file
+    if (bbr->bbr_metrics_file) {
+        fclose(bbr->bbr_metrics_file);
+        bbr->bbr_metrics_file = NULL;
     }
 
-    if (bbr->bbr_cwnd_log_file) {
-        // struct timeval tv;
-        // gettimeofday(&tv, NULL); // Get the current time
-        // long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-
-        // fprintf(bbr->bbr_cwnd_log_file, "%ld%06ld,%ld,%"PRIu64"\n",
-        //         tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-        //         elapsed_microseconds, // Log elapsed microseconds
-        //         bbr->bbr_cwnd);
-
-        fclose(bbr->bbr_cwnd_log_file);
-        bbr->bbr_cwnd_log_file = NULL;
-    }
-
-    if (bbr->bbr_min_rtt_log_file) {
-        // struct timeval tv;
-        // gettimeofday(&tv, NULL); // Get the current time
-        // long elapsed_microseconds = (tv.tv_sec - bbr->bbr_start_time.tv_sec) * 1000000 + (tv.tv_usec - bbr->bbr_start_time.tv_usec); // Calculate elapsed time in microseconds
-
-        // fprintf(bbr->bbr_min_rtt_log_file, "%ld%06ld,%ld,%"PRIu64",%s\n",
-        //         tv.tv_sec * 1000000 + tv.tv_usec, // Log current time in microseconds since epoch
-        //         elapsed_microseconds, // Log elapsed microseconds
-        //         bbr->bbr_min_rtt,
-        //         "cleanup");
-        fclose(bbr->bbr_min_rtt_log_file);
-        bbr->bbr_min_rtt_log_file = NULL;
+    // Close the packet log file
+    if (bbr->bbr_packet_log_file) {
+        fclose(bbr->bbr_packet_log_file);
+        bbr->bbr_packet_log_file = NULL;
     }
 
     LSQ_DEBUG("cleanup");
